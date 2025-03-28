@@ -6,8 +6,9 @@ pandas>=1.5.3
 psycopg2-binary>=2.9.3
 python-dotenv>=0.20.0
 requests>=2.27.1
-scikit-learn
+scikit-learn~=1.6.1
 seaborn>=0.12.2
 sqlalchemy>=1.4.37
 sympy>=1.10.1
 xgboost
+ipython~=8.30.0

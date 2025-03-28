@@ -1,6 +1,9 @@
 import os
 from typing import TypedDict, NotRequired, Tuple
-from dotenv import load_dotenv  # type: ignore
+
+from IPython.core.display_functions import display
+from dotenv import load_dotenv
+from IPython.display import Markdown
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
@@ -18,7 +21,7 @@ def db_connect() -> None:
     Connects to the database using sqlalchemy
     """
 
-    engine = create_engine(os.getenv("DATABASE_URL"))  # type: ignore
+    engine = create_engine(os.getenv("DATABASE_URL"))
     engine.connect()
 
     return
@@ -282,3 +285,86 @@ def cap_outliers_iqr(df, column_name) -> pd.DataFrame:
     df[column_name] = np.where(df[column_name] > upper_bound, upper_bound, df[column_name])
 
     return df
+
+
+def show_comparison_table(metric_names: list[str], default_metrics: list[float], optimized_metrics: list[float]) -> None:
+    """
+    Creates and show a Markdown table comparing default and optimized model metrics.
+
+    Args:
+        metric_names (list[str]): List of metric names.
+        default_metrics (list[float]): List of metric values for the default model.
+        optimized_metrics (list[float]): List of metric values for the optimized model.
+
+    Returns:
+        str: A Markdown table as a string.
+    """
+
+    if len(metric_names) != len(default_metrics) or len(metric_names) != len(optimized_metrics):
+        return "Error: Metric lists must have the same length."
+
+    markdown_table = "| Metric | Default Model | Optimized Model |\n"
+    markdown_table += "|---|---|---|\n"
+
+    for i in range(len(metric_names)):
+        markdown_table += f"| {metric_names[i]} | {np.round(default_metrics[i], 2)} | {np.round(optimized_metrics[i], 2)} |\n"
+
+    # display the table
+    display(Markdown(markdown_table))
+
+    return None
+
+
+def draw_comparison_confusion_matrices(
+        confusion_1: pd.DataFrame,
+        confusion_2: pd.DataFrame,
+        confusion_matrix_1_name: str,
+        confusion_matrix_2_name: str,
+) -> None:
+    """
+    Draw a confusion matrix using seaborn.
+
+    Args:
+        confusion_1 (DataFrame): The confusion matrix of the first model.
+        confusion_2 (DataFrame): The confusion matrix of the second model.
+        confusion_matrix_1_name (str): Label to put on the heatmap of the first confusion matrix.
+        confusion_matrix_2_name (str): Label to put on the heatmap of the second confusion matrix.
+
+    Returns:
+        None
+    """
+
+    _, axis = plt.subplots(1, 2, figsize = (20, 7))
+
+    # create the groups to display
+    group_names = ['True Neg', 'False Pos', 'False Neg', 'True Pos']
+
+    # first confusion values
+    conf_1_group_counts = ['{0:0.0f}'.format(value) for value in confusion_1.flatten()]
+    conf_1_group_percentages = ['{0:.2%}'.format(value) for value in confusion_1.flatten() / np.sum(confusion_1)]
+
+    # second confusion values
+    conf_2_group_counts = ['{0:0.0f}'.format(value) for value in confusion_2.flatten()]
+    conf_2_group_percentages = ['{0:.2%}'.format(value) for value in confusion_2.flatten() / np.sum(confusion_2)]
+
+
+    # labels to display of the first confusion matrix
+    conf_1_labels = [f'{v1}\n{v2}\n{v3}' for v1, v2, v3 in zip(group_names, conf_1_group_counts, conf_1_group_percentages)]
+    conf_1_labels = np.asarray(conf_1_labels).reshape(2, 2)
+
+    # labels to display of the second confusion matrix
+    conf_2_labels = [f'{v1}\n{v2}\n{v3}' for v1, v2, v3 in zip(group_names, conf_2_group_counts, conf_2_group_percentages)]
+    conf_2_labels = np.asarray(conf_2_labels).reshape(2, 2)
+
+    plt.figure(figsize=(10, 5))
+
+    # first heatmap
+    sns.heatmap(ax=axis[0], data=confusion_1, annot=conf_1_labels, fmt='').set(xlabel = f'{confusion_matrix_1_name} - True label', ylabel = 'Predicted label')
+    # second heatmap
+    sns.heatmap(ax=axis[1], data=confusion_2, annot=conf_2_labels, fmt='').set(xlabel = f'{confusion_matrix_2_name} - True label', ylabel = 'Predicted label')
+
+    plt.tight_layout()
+    plt.show()
+
+    return None
+
